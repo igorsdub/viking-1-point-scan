@@ -35,11 +35,11 @@ printf -v CUTOFF_PAD "%04.1f" $CUTOFF
 printf -v RESIDUE_NUM_PAD "%04d" $RESIDUE_NUM
 
 # Create working directory
-WORK_DIR=$ROOT/working-$PDB_FILENAME/cutoff-$CUTOFF_PAD/res-$RESIDUE_NUM_PAD
+WORK_DIR=$ROOT/working-$PDB_FILENAME/res-$RESIDUE_NUM_PAD
 mkdir -p $WORK_DIR
 
 # Create results directory and output files
-RESULTS_DIR=$ROOT/results-$PDB_ID/cutoff-$CUTOFF_PAD
+RESULTS_DIR=$ROOT/results
 mkdir -p $RESULTS_DIR
 
 ENERGY_FILE=$RESULTS_DIR/${PDB_FILENAME}.${RESIDUE_NUM_PAD}.1point.energy
@@ -56,7 +56,11 @@ do
     echo "Custom spring-constant:" $SPRING_STRENGTH
 
     echo "Writing: res.force"
-    printf " %4s %1s %4s %1s %8.3f\n" $RESIDUE_NUM \* \* $CHAIN_ID $SPRING_STRENGTH > res.force
+    rm -f res.force
+    for CHAIN_ID in A B 
+    do
+        printf " %4s %1s %4s %1s %8.3f\n" $RESIDUE_NUM $CHAIN_ID \* \* $SPRING_STRENGTH >> res.force
+    done
 
     echo "Running: GENENMM"
     $DDPT_BIN/GENENMM -pdb $PDB_FILEPATH -c $CUTOFF -ca -het -dna -lig1 -fcust res.force 
