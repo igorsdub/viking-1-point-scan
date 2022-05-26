@@ -1,6 +1,5 @@
 #!/bin/bash
-# Configures VIking directory for mutational scan
+# Configures Viking directory for 1-point
+# ENM scan
 
-dos2unix *.sh 
-chmod u+x *.sh durham-ddpt-code/bin/*
-mkdir -p logs errors
+mkdir -p logs errors data

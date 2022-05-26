@@ -13,7 +13,7 @@
 # Check if ffile has been submitted
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <pdb-filepath> <cutoff>"
-    echo "Example: $0 pdb/1c3b_1.pdb 8.0"
+    echo "Example: $0 pdb/1.pdb 8.0"
     exit 1
 fi
 
@@ -22,7 +22,7 @@ CUTOFF=$2
 RESIDUE_NUM=$SLURM_ARRAY_TASK_ID
 
 # Load Fortran compiler
-module load toolchain/foss/2018b
+module load toolchain/foss/2021b
 
 echo My working directory is `pwd`
 echo Running DDPT job index $SLURM_ARRAY_TASK_ID, on host:

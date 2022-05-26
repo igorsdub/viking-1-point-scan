@@ -5,7 +5,7 @@
 # the Hessian matrix and extracts eigenvalues 
 # which are saved
 # 
-# 
+# bash src/scan_1point.sh pdb/1.pdb 8.0 145
 # DDPT must be installed and added to `PATH`
 if [ "$#" -ne 3 ]; then
     echo "Usage: $0 <pdb-filepath> <cutoff> <residue-number>"
@@ -24,7 +24,7 @@ echo "Residue number:"  $3
 
 # Shortcut to the files and binaries
 ROOT=$PWD
-PDB_FILEPATH=$ROOT/$1
+PDB_FILEPATH=$1
 CUTOFF=$2
 RESIDUE_NUM=$3
 
@@ -32,7 +32,7 @@ RESIDUE_NUM=$3
 shopt -s extglob
 
 # Extract PDB file form index
-FORM_IDX=$(basename "${PDB_PATH}")
+FORM_IDX=$(basename "${PDB_FILEPATH}")
 FORM_IDX="${FORM_IDX%%.*}"
 
 # Pad cut-off and residued sequence number
@@ -40,59 +40,57 @@ printf -v CUTOFF_PAD "%05.2f" $CUTOFF
 printf -v RESIDUE_NUM_PAD "%04d" $RESIDUE_NUM
 
 # Create working directory
-WORK_DIR=$ROOT/working-$PDB_FILENAME/c${CUTOFF_PAD}/res${RESIDUE_NUM_PAD}
+WORK_DIR=working-${FORM_IDX}/c${CUTOFF_PAD}/res${RESIDUE_NUM_PAD}
 mkdir -p $WORK_DIR
 
 # Create results directory and output files
-RESULTS_DIR=$ROOT/data
+RESULTS_DIR=data
 mkdir -p $RESULTS_DIR
 
 EIGVALS_FILE=$RESULTS_DIR/${FORM_IDX}.res${RESIDUE_NUM_PAD}.csv
+rm -f ${EIGVALS_FILE}
+echo "${RESIDUE_NUM}" > ${EIGVALS_FILE}
 
 GENENMM_FLAGS="-c 0.0 -f 1 -ca -het -mass -res -ccust cutoff.ddpt -spcust spring.ddpt -fcust resforce.ddpt"
 
 mkdir -p ${WORK_DIR}
 
-# Create the working directory
-echo -n "Moving to working directory: "
-pushd $WORK_DIR
-
 # Copy auxilary files, if any are present,
 # for -mass -ca -res, -ccust, -spcust and -fcust flags. 
 cp -f misc/*.ddpt -t ${WORK_DIR} 2> /dev/null
-cp ${PDB_PATH} ${WORK_DIR}/origin_struct.pdb
+cp ${PDB_FILEPATH} ${WORK_DIR}/origin_struct.pdb
 
 echo "Writing DDPT cfile file:"
-printf '%4s %7.3f\n' " CA " "${CUTOFF}" > cutoff.ddpt
-printf '%4s %7.3f\n' " LG " "0.0" >> cutoff.ddpt
+printf '%4s %7.3f\n' " CA " "${CUTOFF}" > $WORK_DIR/cutoff.ddpt
+printf '%4s %7.3f\n' " LG " "0.0" >> $WORK_DIR/cutoff.ddpt
 
+echo -n "Moving to working directory: "
+pushd $WORK_DIR
 # Generate an EN for single-bead mass-weigthed ligands
 echo "Creating EN PDB file:"
 GENENMM -pdb origin_struct.pdb -res -mass -ca -het -lig1
 sed -i 's/\(HETATM.\{6\}\) CA /\1 LG /' CAonly.pdb
 mv CAonly.pdb en_struct.pdb
-
-# Come back to the root
 popd
 
 # for SPRING_STRENGTH in 1.00
 # Scan doesn't have ${SPRING_STRENGTH} == 1.00
 # this value correspond to wild-type ENM and is the same for all scans
+# for SPRING_STRENGTH in 0.25
 for SPRING_STRENGTH in 0.25 0.313 0.375 0.438 0.5 0.563 0.625 0.688 0.75 0.813 0.875 0.938 1.25 1.50 1.75 2.00 2.25 2.50 2.75 3.00 3.25 3.50 3.75 4.00
 do
-    pushd $WORK_DIR
-    echo "Custom spring-constant:" $SPRING_STRENGTH
+    echo "Custom spring-constant:" ${SPRING_STRENGTH}
 
     echo "Writing DDPT resforce file:"
     rm -f $WORK_DIR/resforce.ddpt
     # Asteriks "*" denote wild-card residue number and chain ID
     for CHAIN_ID in A B 
     do
-        printf " %4s %1s %4s %1s %8.3f\n" $RESIDUE_NUM $CHAIN_ID \* \* $SPRING_STRENGTH >> $WORK_DIR/resforce.ddpt
+        printf " %4s %1s %4s %1s %8.3f\n" ${RESIDUE_NUM} ${CHAIN_ID} \* \* ${SPRING_STRENGTH} >> $WORK_DIR/resforce.ddpt
     done
 
     # Append SPRING_STRENGTH label to the top of results
-    echo "#$SPRING_STRENGTH" >> ${EIGVALS_FILE}
+    echo "#${SPRING_STRENGTH}" >> ${EIGVALS_FILE}
 
     bash src/run_enm.sh "${WORK_DIR}" \
         "${OUTPUT_DIR}" \
@@ -100,10 +98,10 @@ do
         "${GENENMM_FLAGS}"
 
     # Extract eigenvalues
-    grep -v "^#" ${WORK_DIR}/mode.frequencies >> ${EIGVALS_FILE}
+    grep -v "^#" ${WORK_DIR}/mode.frequencies | tr -d ' ' >> ${EIGVALS_FILE}
 
     # Clean up but leave DDPT aux files and PDB files
-    rm -rf $WORK_DIR/!(*.ddpt|*.pdb) 
+    rm -rf $WORK_DIR/!(*.ddpt|*.pdb)
     echo
 done
 
